@@ -25,35 +25,39 @@
 </div>
 
 <script>
-  const username = prompt("Quin es el teu nom?") || "Anonimo";
-  const sala = "sala2"; // canviar per "sala2" a sala2.html
+const username = prompt("Quin es el teu nom?") || "Anonimo";
+const sala = "sala2";
+const protocol = location.protocol === "https:" ? "wss" : "ws";
+const ws = new WebSocket(`${protocol}://${location.host}`);
 
-  const protocol = location.protocol === "https:" ? "wss" : "ws";
-  const ws = new WebSocket(`${protocol}://${location.host}/?sala=${sala}`);
+ws.onopen = () => {
+  ws.send(JSON.stringify({ type: "join", sala }));
+};
 
-  ws.onmessage = (ev) => {
+ws.onmessage = (ev) => {
+  const data = JSON.parse(ev.data);
+  if (data.type === "message") {
     const div = document.getElementById("chat");
-    const [user, time, text] = ev.data.split("|");
-    const escapedText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const msgDiv = document.createElement("div");
-    msgDiv.className = user === username ? "me" : "other";
-    msgDiv.innerHTML = `<strong>${user}</strong> [${time}]: ${escapedText}`;
+    msgDiv.className = data.user === username ? "me" : "other";
+    msgDiv.innerHTML = `<strong>${data.user}</strong> [${data.time}]: ${data.text}`;
     div.appendChild(msgDiv);
     div.scrollTop = div.scrollHeight;
   }
+};
 
-  function send() {
-    const input = document.getElementById("msg");
-    const text = input.value.trim();
-    if (!text) return;
-    const time = new Date().toLocaleTimeString();
-    ws.send(`${username}|${time}|${text}`);
-    input.value = "";
-  }
+function send() {
+  const input = document.getElementById("msg");
+  const text = input.value.trim();
+  if (!text) return;
+  const time = new Date().toLocaleTimeString();
+  ws.send(JSON.stringify({ type: "message", sala, user: username, time, text }));
+  input.value = "";
+}
 
-  document.getElementById("msg").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") send();
-  });
+document.getElementById("msg").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") send();
+});
 </script>
 
 </body>
