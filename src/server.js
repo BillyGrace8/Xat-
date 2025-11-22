@@ -1,7 +1,6 @@
 const WebSocket = require("ws");
 const http = require("http");
 const fs = require("fs");
-const url = require("url");
 const path = require("path");
 
 const server = http.createServer((req, res) => {
@@ -9,10 +8,7 @@ const server = http.createServer((req, res) => {
   const filePath = path.join(__dirname, file);
 
   fs.readFile(filePath, "utf8", (err, data) => {
-    if (err) {
-      res.writeHead(404);
-      return res.end("No trobat");
-    }
+    if (err) { res.writeHead(404); return res.end("No trobat"); }
     res.writeHead(200, { "Content-Type": "text/html" });
     res.end(data);
   });
@@ -21,19 +17,32 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocket.Server({ server });
 const rooms = {}; // rooms["sala1"] = Set of ws clients
 
-wss.on("connection", (ws, req) => {
-  const sala = url.parse(req.url, true).query.sala || "general";
+wss.on("connection", (ws) => {
+  let sala = null;
 
-  if (!rooms[sala]) rooms[sala] = new Set();
-  rooms[sala].add(ws);
+  ws.on("message", (msg) => {
+    let data;
+    try { data = JSON.parse(msg); } catch(e) { return; }
 
-  ws.on("message", msg => {
-    rooms[sala].forEach(client => {
-      if (client.readyState === WebSocket.OPEN) client.send(msg);
-    });
+    if (data.type === "join") {
+      sala = data.sala;
+      if (!rooms[sala]) rooms[sala] = new Set();
+      rooms[sala].add(ws);
+    }
+
+    if (data.type === "message" && sala) {
+      // reenviar només dins la sala
+      rooms[sala].forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify(data));
+        }
+      });
+    }
   });
 
-  ws.on("close", () => rooms[sala].delete(ws));
+  ws.on("close", () => {
+    if (sala && rooms[sala]) rooms[sala].delete(ws);
+  });
 });
 
 const PORT = process.env.PORT || 3000;
