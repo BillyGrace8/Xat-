@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Chat Sencillo</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    #chat { border:1px solid #aaa; height:300px; overflow-y:auto; padding:5px; }
+    #chat div { margin: 5px 0; padding: 4px 8px; border-radius: 5px; max-width: 80%; }
+    .me { background-color: #DCF8C6; margin-left: auto; }
+    .other { background-color: #F1F0F0; margin-right: auto; }
+    #input-container { margin-top:10px; display: flex; }
+    #msg { flex: 1; padding:5px; }
+    button { padding: 5px 10px; margin-left:5px; }
+  </style>
+</head>
+<body>
+
+<h3>Chat Sencillo</h3>
+<div id="chat"></div>
+
+<div id="input-container">
+  <input id="msg" placeholder="Escribe..." autofocus>
+  <button onclick="send()">Enviar</button>
+</div>
+
+<script>
+  const username = prompt("¿Cuál es tu nombre?") || "Anonimo";
+
+  // Escollir ws o wss segons si estem en https
+  const protocol = location.protocol === "https:" ? "wss" : "ws";
+  const ws = new WebSocket(`${protocol}://${location.host}`);
+
+  ws.onmessage = (ev) => {
+    const div = document.getElementById("chat");
+
+    const [user, time, text] = ev.data.split("|");
+    const escapedText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    const msgDiv = document.createElement("div");
+    msgDiv.className = user === username ? "me" : "other";
+    msgDiv.innerHTML = `<strong>${user}</strong> [${time}]: ${escapedText}`;
+    
+    div.appendChild(msgDiv);
+    div.scrollTop = div.scrollHeight;
+  }
+
+  function send() {
+    const input = document.getElementById("msg");
+    const text = input.value.trim();
+    if (!text) return;
+    const time = new Date().toLocaleTimeString();
+    ws.send(`${username}|${time}|${text}`);
+    input.value = "";
+  }
+
+  // Enviar amb Enter
+  document.getElementById("msg").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") send();
+  });
+</script>
+
+</body>
+</html>
